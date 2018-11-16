@@ -1,1 +1,192 @@
 
+# coding: utf-8
+
+# In[1]:
+
+
+import numpy as np
+import os
+import pandas as pd
+import math
+qlist = open('C:/Users/chin/Desktop/IR_homework_1/query_list.txt')
+ql = qlist.read().replace("\n"," ")
+list_ql = ql.split(' ')
+dlist = open('C:/Users/chin/Desktop/IR_homework_1/doc_list.txt')
+dl = dlist.read().replace("\n"," ")
+list_dl = dl.split(' ')
+list_dq=[]
+for num in range(len(list_ql)): 
+    fp = open('C:/Users/chin/Desktop/IR_homework_1/Query/'+list_ql[num])
+    q = fp.read().replace("-1\n","")
+    list_q = q.split(' ')
+    list_q.pop()
+    list_dq.extend(list_q)
+    #print(num)  
+for num in range(len(list_dl)): 
+    fp = open('C:/Users/chin/Desktop/IR_homework_1/Document/'+list_dl[num])
+    fp.readline()
+    fp.readline()
+    fp.readline()
+    q = fp.read().replace("-1\n","")
+    list_q = q.split(' ')
+    list_q.pop()
+    list_dq.extend(list_q)
+   # print(num)
+print(list_dq)
+list_set = set(list_dq)
+list_set = list(list_set)
+tf_query = np.zeros((len(list_set),len(list_ql)))
+tf_document = np.zeros((len(list_set),len(list_dl)))
+
+
+# In[2]:
+
+
+for num_query in range(len(list_ql)):
+    fp = open('C:/Users/chin/Desktop/IR_homework_1/Query/'+list_ql[num_query])
+    q = fp.read().replace("-1\n","")
+    list_q = q.split(' ')
+    list_q.pop()
+    for num_word in range(len(list_set)):
+        for num_query_vocab in range(len(list_q)):
+            if list_set[num_word] == list_q[num_query_vocab]:
+                #print(list_set[num_word],list_q[num_query_vocab])
+                tf_query[num_word][num_query] = tf_query[num_word][num_query]+1
+print(tf_query.shape)
+
+
+# In[3]:
+
+
+# print(len(list_set))
+# for i in range(len(list_set)):
+#     for j in range(len(list_ql)):
+#         print(tf_query[i][j])
+#         if tf_query[i][j] != 0:
+#             tf_query[i][j] = math.log(tf_query[i][j],2)
+#         else:
+#             tf_query = 0
+# print(tf_query)
+
+
+# In[4]:
+
+
+for num_query in range(len(list_dl)):
+    fp = open('C:/Users/chin/Desktop/IR_homework_1/Document/'+list_dl[num_query])
+    fp.readline()
+    fp.readline()
+    fp.readline()
+    q = fp.read().replace("-1\n","")
+    list_q = q.split(' ')
+    list_q.pop()
+    for num_word in range(len(list_set)):
+        for num_query_vocab in range(len(list_q)):
+            if list_set[num_word] == list_q[num_query_vocab]:
+                #print(list_set[num_word],list_q[num_query_vocab])
+                tf_document[num_word][num_query] = tf_document[num_word][num_query]+1
+# for i in range(len(list_set)):
+#     for j in range(len(list_dl)):
+#         if tf_document[i][j] != 0:
+#             tf_document[i][j] = 1+math.log(tf_document[i][j],2)
+#         else:
+#             tf_document = 0
+print(tf_document)
+
+
+# In[5]:
+
+
+idf = np.zeros((len(list_set)))
+for num_doc in range(len(list_dl)):
+    fp = open('C:/Users/chin/Desktop/IR_homework_1/Document/'+list_dl[num_doc])
+    fp.readline()
+    fp.readline()
+    fp.readline()
+    q = fp.read().replace("-1\n","")
+    list_q = q.split(' ')
+    list_q.pop()
+    for num_word in range(len(list_set)):
+        for num_query_vocab in range(len(list_q)):
+            if list_set[num_word] == list_q[num_query_vocab]:
+                idf[num_word] = idf[num_word]+1
+                break
+for num_idf in range(len(list_set)):
+    if idf[num_idf] != 0:
+        idf[num_idf] = math.log((len(list_dl)/idf[num_idf]),10)
+    else:
+        idf[num_idf] = 0
+print(idf)
+
+
+# In[6]:
+
+
+tfidf_doc = np.zeros((len(list_set),len(list_dl)))
+for num_doc in range(len(list_dl)):
+    for num_vocab in range(len(list_set)):
+        tfidf_doc[num_vocab,num_doc] = tf_document[num_vocab,num_doc]*idf[num_vocab]
+print(tfidf_doc)
+print(len(tfidf_doc))
+
+
+# In[7]:
+
+
+tfidf_query = np.zeros((len(list_set),len(list_ql)))
+for num_query in range(len(list_ql)):
+    for num_vocab in range(len(list_set)):
+        tfidf_query[num_vocab,num_query] = tf_query[num_vocab,num_query]*idf[num_vocab]
+print(tfidf_query)
+print(len(tfidf_query))
+
+
+# In[8]:
+
+
+from sklearn.metrics.pairwise import cosine_similarity
+ans = np.zeros((len(list_ql),len(list_dl)))
+for num_qu in range(len(list_ql)):
+    for num_doc in range(len(list_dl)):
+            ans[num_qu,num_doc] = cosine_similarity([tfidf_query[:,num_qu]], [tfidf_doc[:,num_doc]])
+print(ans)
+
+
+# In[9]:
+
+
+print(ans.shape)
+
+
+# In[10]:
+
+
+ans_T=ans.T
+a = pd.DataFrame(ans_T,columns=list_ql,index=list_dl)
+#a = pd.DataFrame(ans_T,index=list_dl)
+a.index
+
+
+# In[12]:
+
+
+#a.sort_values(by='20005.query',ascending=False)
+file = open("submission.txt", "a")
+file.write("Query,RetrievedDocuments\n")
+for num_ql in range(len(list_ql)):
+    df = pd.DataFrame(a[list_ql[num_ql]])
+    asc = df.sort_values(by=list_ql[num_ql],ascending=False)
+    wt = asc.index.tolist()
+    wt = str(wt)
+    wt = wt.replace("[","")
+    wt = wt.replace("]","")
+    wt = wt.replace("'","")
+    wt = wt.replace("'","")
+    wt = wt.replace(","," ")
+    file.write(list_ql[num_ql]+",")
+    file.write(wt+"\n")
+                
+file.close()
+asc
+
+
